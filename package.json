@@ -1,0 +1,23 @@
+{
+  "name": "isatu-sr-main-cert-verify",
+  "version": "1.0.0",
+  "description": "ISAT-U Student Republic Iloilo City Campus Control Number Verification Website",
+  "type": "module",            
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",   
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ISAT-U SR PR Team 2025-26",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "lru-cache": "^11.1.0",
+    "p-queue": "^8.1.0"
+  },
+  "devDependencies": {
+    "mkcert": "^3.2.0"
+  }
+}

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/x-icon" href="sr_logo.ico">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISAT-U SR Iloilo City Certificate Verify</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f4f7fa;
+    color: #333;
+    text-align: center;
+    padding: 30px;
+}
+h1 { color: #2c3e50; margin-bottom: 30px; }
+input, button {
+    padding: 12px 18px;
+    margin: 8px 5px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+input:disabled { background: #e1e1e1; cursor: not-allowed; }
+button { cursor: pointer; background: #3498db; color: white; border: none; }
+button:disabled { background: #95a5a6; cursor: not-allowed; }
+button:hover:not(:disabled) { background: #2980b9; }
+#resetBtn { background: #e67e22; }
+#resetBtn:hover { background: #d35400; }
+#shareBtn { background: #2ecc71; }
+#shareBtn:hover { background: #27ae60; }
+#qr-video {
+    width: 100%;
+    max-width: 400px;
+    height: 300px;
+    margin: 15px auto;
+    display: none;
+    border-radius: 12px;
+    border: 2px solid #ccc;
+}
+#result {
+    margin-top: 30px;
+    text-align: left;
+    display: inline-block;
+    background: white;
+    padding: 20px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    max-width: 500px;
+}
+#result p { margin: 8px 0; }
+.input-group { display: flex; justify-content: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<h1>ISAT-U SR Iloilo City Certificate Verify</h1>
+
+<div class="input-group">
+    <input type="text" id="controlInput" placeholder="Enter Control Number">
+    <button id="checkBtn">Check</button>
+    <button id="resetBtn" style="display:none;">Search Again</button>
+    <button id="shareBtn" style="display:none;">Share Link</button>
+</div>
+
+<h3>Or Scan QR Code</h3>
+<video id="qr-video"></video>
+<button id="scanBtn">Start QR Scanner</button>
+
+<div id="result"></div>
+
+<script type="module">
+import QrScanner from "https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js";
+
+let qrScanner = null;
+
+// ✅ sanitize input
+function sanitizeControlNumber(input) {
+    if (!input) return null;
+    const sanitized = input.trim().toUpperCase().replace(/[^\w-]/g, "");
+    return sanitized.length ? sanitized : null;
+}
+
+function updateURL(controlNumber) {
+    const newUrl = `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(controlNumber)}`;
+    window.history.replaceState(null, "", newUrl);
+}
+
+async function checkCertificate(controlNumber) {
+    controlNumber = sanitizeControlNumber(controlNumber) || sanitizeControlNumber(document.getElementById("controlInput").value);
+    if (!controlNumber) { alert("Please enter or scan a valid control number."); return; }
+
+    const inputElem = document.getElementById("controlInput");
+    const checkBtn = document.getElementById("checkBtn");
+    const scanBtn = document.getElementById("scanBtn");
+    const resultDiv = document.getElementById("result");
+    const shareBtn = document.getElementById("shareBtn");
+
+    inputElem.disabled = true;
+    checkBtn.disabled = true;
+    scanBtn.disabled = true;
+
+    updateURL(controlNumber);
+    resultDiv.innerHTML = `<p>Fetching data...</p>`;
+    shareBtn.style.display = "none";
+
+    try {
+        const res = await fetch(`/api/certificate/${encodeURIComponent(controlNumber)}`);
+        const data = await res.json();
+
+        if (data.error) {
+            resultDiv.innerHTML = `<p style="color:red;">${data.error}</p>`;
+        } else {
+            // ✅ escape dynamic content
+            resultDiv.innerHTML = "";
+            for (const key in data) {
+                const p = document.createElement("p");
+                p.innerHTML = `<strong>${key.replace(/_/g, " ")}:</strong> ${String(data[key] || "N/A")}`;
+                resultDiv.appendChild(p);
+            }
+            shareBtn.style.display = "inline-block";
+        }
+    } catch (err) {
+        console.error("Error fetching certificate:", err);
+        resultDiv.innerHTML = `<p style="color:red;">An error occurred while fetching the certificate.</p>`;
+    } finally {
+        document.getElementById("resetBtn").style.display = "inline-block";
+    }
+}
+
+// Manual check
+document.getElementById("checkBtn").addEventListener("click", () => checkCertificate());
+
+// QR scanner
+document.getElementById("scanBtn").addEventListener("click", async () => {
+    const videoElem = document.getElementById("qr-video");
+    const startButton = document.getElementById("scanBtn");
+    videoElem.style.display = "block";
+    startButton.disabled = true;
+    startButton.textContent = "Scanner Active...";
+
+    if (!qrScanner) {
+        qrScanner = new QrScanner(
+            videoElem,
+            result => {
+                qrScanner.stop();
+                videoElem.style.display = "none";
+                startButton.textContent = "Start QR Scanner";
+
+                const qrValue = sanitizeControlNumber(result.data || result);
+                if (!qrValue) { alert("Invalid QR code."); startButton.disabled = false; return; }
+
+                const inputBox = document.getElementById("controlInput");
+                inputBox.value = qrValue;
+                inputBox.disabled = true;
+                document.getElementById("checkBtn").disabled = true;
+                startButton.disabled = true;
+
+                checkCertificate(qrValue);
+            },
+            { onDecodeError: error => console.log("Decode error:", error), highlightScanRegion: true, highlightCodeOutline: true }
+        );
+    }
+
+    try { await qrScanner.start(); } 
+    catch (err) {
+        console.error("Camera start failed:", err);
+        alert("Camera access failed. Ensure HTTPS or localhost and allow camera permissions.");
+        startButton.disabled = false;
+        startButton.textContent = "Start QR Scanner";
+    }
+});
+
+// Reset/Search Again
+document.getElementById("resetBtn").addEventListener("click", () => {
+    const inputElem = document.getElementById("controlInput");
+    inputElem.value = "";
+    inputElem.disabled = false;
+    document.getElementById("checkBtn").disabled = false;
+    document.getElementById("scanBtn").disabled = false;
+    document.getElementById("result").innerHTML = "";
+    document.getElementById("resetBtn").style.display = "none";
+    document.getElementById("shareBtn").style.display = "none";
+    window.history.replaceState(null, "", window.location.pathname);
+});
+
+// Share link button
+document.getElementById("shareBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(window.location.href)
+        .then(() => alert("Link copied to clipboard!"))
+        .catch(err => alert("Failed to copy link: " + err));
+});
+
+// Auto-check if ?id= in URL
+window.addEventListener("DOMContentLoaded", () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const controlId = sanitizeControlNumber(urlParams.get("id"));
+    if (controlId) {
+        document.getElementById("controlInput").value = controlId;
+        checkCertificate(controlId);
+    }
+});
+</script>
+</body>
+</html>

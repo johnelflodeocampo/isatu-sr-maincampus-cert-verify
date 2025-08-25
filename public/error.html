@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f4f7fa; text-align:center; padding:50px; }
+    h1 { color:#c0392b; }
+    p { font-size:18px; margin:20px 0; }
+    button { padding:10px 20px; font-size:16px; border:none; border-radius:8px; background:#3498db; color:white; cursor:pointer; }
+    button:hover { background:#2980b9; }
+</style>
+</head>
+<body>
+<h1>An Error Occurred</h1>
+<p id="error-msg">Something went wrong.</p>
+<button onclick="window.location='/'">Back to Home</button>
+
+<script>
+    // Display message from query parameter if available
+    const params = new URLSearchParams(window.location.search);
+    const msg = params.get('msg');
+    if(msg) {
+        document.getElementById('error-msg').textContent = decodeURIComponent(msg);
+    }
+</script>
+</body>
+</html>
